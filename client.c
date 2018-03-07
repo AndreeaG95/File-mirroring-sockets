@@ -18,6 +18,7 @@ void merror(char *msg)
   exit(1);
 }
 
+
 int main(void){
   int fd, sockfd;
   struct sockaddr_in local_addr, remote_addr;
@@ -28,6 +29,8 @@ int main(void){
   }
 
   set_addr(&local_addr, NULL, INADDR_ANY, 0);
+  // We also use bind on client because we want to connect on a specific port.
+
   bind(sockfd, (struct sockaddr *)& local_addr , sizeof(local_addr) );
 
   if (set_addr(&local_addr, SERVER_ADDRESS, 0, SERVER_PORT) == -1)
@@ -35,8 +38,11 @@ int main(void){
   if(connect(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
     merror("Unable to connect to socket");
   
-  char buff[20] = "Marius";
-  stream_write(sockfd, (void *)buff, 20);
+  file_info info[100];
+  stream_read(sockfd, (void*) info, sizeof(file_info)*10);
+  for(int i=0; i<10; i++){
+    puts(info[i].path);
+  }
 
   close(sockfd);
   close(fd);
