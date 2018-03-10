@@ -29,17 +29,19 @@ int main(void){
   }
 
   set_addr(&local_addr, NULL, INADDR_ANY, 0);
-  // We also use bind on client because we want to connect on a specific port.
 
+  // We also use bind on client because we want to connect on a specific port.
   bind(sockfd, (struct sockaddr *)& local_addr , sizeof(local_addr) );
 
   if (set_addr(&local_addr, SERVER_ADDRESS, 0, SERVER_PORT) == -1)
     merror("Unable to get client address");
+
   if(connect(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
     merror("Unable to connect to socket");
   
   file_info info[100];
   stream_read(sockfd, (void*) info, sizeof(file_info)*10);
+
   for(int i=0; i<10; i++){
     puts(info[i].path);
   }

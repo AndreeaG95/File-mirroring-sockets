@@ -36,19 +36,25 @@ int getFiles(file_info *files, char* path){
     lstat(newpath, &mstat);
     if((strcmp(sdir->d_name, "..") == 0) || (strcmp(sdir->d_name, ".") == 0 ))
        continue;
+
     if(S_ISDIR(mstat.st_mode)){
-      strncpy(files->path, newpath, strlen(newpath)); 
+      strncpy(files->path, newpath, sizeof(files->path)); 
+      
       files->size = (uint32_t)mstat.st_size;
       files->timestamp = (int32_t)mstat.st_mtime;
       files->permissions = (int)mstat.st_mode; 
+      
       files++;
       length++;
       getFiles(files, newpath);
     }else if(S_ISREG(mstat.st_mode) || S_ISLNK(mstat.st_mode)){
-      strncpy(files->path, newpath, strlen(newpath));   
+      strncpy(files->path, newpath, sizeof(files->path)); 
+    
+      //puts(files->path);
       files->size = (uint32_t)mstat.st_size;
       files->timestamp = (int32_t)mstat.st_mtime;
       files->permissions = (int)mstat.st_mode; 
+      
       files++;
       length++;
     }
@@ -93,6 +99,7 @@ int main(void){
 
   int clients=0;
   while(clients < 100){
+    
     // Create a new socket for each connection.
     connfd = accept(sockfd, (struct sockaddr *)&rmt_addr, &rlen);
     
@@ -105,6 +112,7 @@ int main(void){
     if(clients >= clientSize){
       clientSize = clientSize + clientSize/2;
       client_list = realloc(client_list, clientSize);
+
       if (client_list == NULL)
 	merror("Unable to add memory for client");
     }    
@@ -112,6 +120,7 @@ int main(void){
     for(int i=0; i<10; i++){
       puts(files[i].path);
     }
+
     // Send tree status.
     printf("SIZE: %d \n",length);
     stream_write(connfd, (void *)files, sizeof(file_info) * length);
