@@ -6,22 +6,23 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
 #include <fcntl.h>
 #include "netio.h"
+#include "filester.h"
 
 #define SERVER_ADDRESS "127.0.0.1"
 #define SERVER_PORT     5678
 
-void merror(char *msg)
-{
-  fputs(msg, stderr);
-  exit(1);
-}
-
-
-int main(void){
+int main(int argc, char** argv){
   int sockfd;
+  char root[30];
   struct sockaddr_in local_addr;
+
+  if(argc != 2)
+    merror("Please add root name as first argument");
+
+  strncpy(root, argv[1], sizeof(root));
 
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if(sockfd == -1){
@@ -46,6 +47,5 @@ int main(void){
     puts(info[i].path);
   }
 
-  close(sockfd);
-  
+  close(sockfd);  
 }

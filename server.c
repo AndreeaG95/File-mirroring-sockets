@@ -10,60 +10,9 @@
 #include <dirent.h>
 #include "netio.h"
 #include <string.h>
-
+#include "filester.h"
 
 #define SERVER_PORT 5678
-int length;
-
-void merror(char *msg)
-{
-  fputs(msg, stderr);
-  exit(1);
-}
-
-void getFiles(file_info *files, char* path){
-  DIR *d;
-  struct dirent *sdir;
-  struct stat mstat;
-  char* newpath = malloc(strlen(path) + 30);
-
-  if(( d = opendir(path)) == NULL ){
-    merror("Could not open directory\n");
-    closedir(d);
-  }
-
-  while((sdir = readdir(d)) != NULL){
-    sprintf(newpath, "%s/%s", path, sdir->d_name);
-   
-    lstat(newpath, &mstat);
-    if((strcmp(sdir->d_name, "..") == 0) || (strcmp(sdir->d_name, ".") == 0 ))
-       continue;
-
-    if(S_ISDIR(mstat.st_mode)){
-      strncpy(files[length].path, newpath, sizeof(files[length].path)); 
-      
-      files[length].size = (uint32_t)mstat.st_size;
-      files[length].timestamp = (int32_t)mstat.st_mtime;
-      files[length].permissions = (int)mstat.st_mode; 
-      
-      //files++;
-      length++;
-      getFiles(files, newpath);
-    }else if(S_ISREG(mstat.st_mode) || S_ISLNK(mstat.st_mode)){
-      strncpy(files[length].path, newpath, sizeof(files[length].path)); 
-    
-      //puts(files->path);
-      files[length].size = (uint32_t)mstat.st_size;
-      files[length].timestamp = (int32_t)mstat.st_mtime;
-      files[length].permissions = (int)mstat.st_mode; 
-      
-      //files++;
-      length++;
-    }
-  }
-
-  free(newpath);
-}
 
 int main(void){
 
@@ -75,8 +24,9 @@ int main(void){
   file_info *files = malloc(100*sizeof(file_info));
   char* root = "root";
   
-  //chdir() mabey.
-  getFiles(files, root);
+  //chdir().
+  int length = 0;
+  getFiles(files, root, &length);
  
   if(client_list == NULL)
     merror("Could not allocate memory for server clients."); 
