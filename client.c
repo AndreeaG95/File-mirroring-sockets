@@ -18,7 +18,7 @@
  *isPresentOnServer: checks if a file is present on the server version and returns it. 
  * Otherwise returns null.
  */
-void* isPresentOnServer(file_info local_file, file_info* server_files, int length)
+file_info* isPresentOnServer(file_info local_file, file_info* server_files, int length)
 {
   for(int i=0; i<length; i++)
     if(strcmp(local_file.path, server_files[i].path) == 0)
@@ -49,7 +49,7 @@ int sizeDifferent(file_info local, file_info server)
  *isOnClient: checks if a file from the server is present on the client version and returns it. 
  * Otherwise returns null.
  */
-void* isOnClient(file_info server_file, file_info* local_files, int length)
+file_info* isOnClient(file_info server_file, file_info* local_files, int length)
 {
   for(int i=0; i<length; i++)
     if(strcmp(server_file.path, local_files[i].path) == 0)
@@ -105,31 +105,40 @@ int main(int argc, char** argv)
   for(int i=0; i<10; i++){
     puts(server_files[i].path);
   }
-
-  file_info server_file;
+  
+  file_info *sfile;
   // Delete local files that are not on server or get them if they are modified.
-  for(int i=0; i<length; i++){
-    if( (server_file = (file_info)isPresentOnServer(local_version[i], server_files, 10)) == NULL){
+  for(int i=0; i<length; i++)
+    {
+
+      if( (sfile = isPresentOnServer(local_version[i], server_files, 10)) == NULL)
+	{
+
+	  if(remove(local_version[i].path) != 0)
+	    if(rmdir(local_version[i].path) != 0)
+	      printf("Could not delete file: %s", local_version[i].path);
+	}
+      else
+	{
+	  file_info server_file = *sfile;
+	  if(dateModified(local_version[i], server_file) || sizeDifferent(local_version[i], server_file)){
+	    ;
+	    //TODO(): get desired file from the server and replace it.
+	  }
       
-	if(remove(local_version[i].path) != 0)
-	  if(rmdir(local_version[i].path) != 0)
-	    printf("Could not delete file: %s", local_version[i].path);
-      }else{
-      
-      if(dateModified(local_version[i], server_file) || sizeDifferent(local_version[i], server_file)){
-	//TODO(): get desired file from the server and replace it.
-      }
+	}
       
     }
-      
-  }
 
   // Get the files from the server that are not on client.
   for(int i=0; i<10; i++){
 
-    if( (server_file = isOnClient(server_files[i], local_version, length) ) == NULL)
-      // TODO(): get the file from the server.
+    if( (sfile = isOnClient(server_files[i], local_version, length) ) == NULL)
+      {
+	;
       }
+      // TODO(): get the file from the server.
+  }
     
   close(sockfd);  
 }
