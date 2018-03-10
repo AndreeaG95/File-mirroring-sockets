@@ -14,15 +14,19 @@
 
 #define SERVER_PORT 5678
 
-int main(void){
-
+int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
   socklen_t rlen = sizeof(rmt_addr);
   int clientSize = 10;
   struct sockaddr_in *client_list = malloc(clientSize*sizeof(struct sockaddr_in));
   file_info *files = malloc(100*sizeof(file_info));
-  char* root = "root";
+  
+  if (argc != 2){
+	merror("Please call: exename softwareFolder");
+  }
+
+  char* root = argv[1];
   
   //chdir().
   int length = 0;
