@@ -8,8 +8,9 @@
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include "netio.h"
 #include <string.h>
+
+#include "netio.h"
 #include "filester.h"
 
 #define SERVER_PORT 5678
@@ -28,9 +29,10 @@ int main(int argc, char* argv[]){
 
   char* root = argv[1];
   
-  //chdir().
+  chdir(root);
+
   int length = 0;
-  getFiles(files, root, &length);
+  getFiles(files, ".", &length);
  
   if(client_list == NULL)
     merror("Could not allocate memory for server clients."); 

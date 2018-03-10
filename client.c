@@ -14,7 +14,23 @@
 #define SERVER_ADDRESS "127.0.0.1"
 #define SERVER_PORT     5678
 
-int main(int argc, char** argv){
+// isPresentOnServer checks if a file is present on the server version and returns it. Otherwise returns null.
+void* isPresentOnServer(file_info local_file, file_info* server_files, int length)
+{
+  for(int i=0; i<length; i++)
+    if(strcmp(local_file.path, server_files[i].path) == 0)
+      return &server_files[i];
+  
+  return NULL;
+}
+
+int cmp(const void* a, const void* b)
+{
+  return strcmp( ((file_info *)a)->path, ((file_info *)b)->path );
+}
+
+int main(int argc, char** argv)
+{
   int sockfd;
   char root[30];
   struct sockaddr_in local_addr;
@@ -40,12 +56,27 @@ int main(int argc, char** argv){
   if(connect(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
     merror("Unable to connect to socket");
   
-  file_info info[100];
-  stream_read(sockfd, (void*) info, sizeof(file_info)*10);
+  file_info *local_version = malloc(100*sizeof(file_info));
+  int length = 0;
+  chdir(root);
 
+  getFiles(local_version, ".", &length);
+  qsort(local_version, length, sizeof(file_info), cmp);   
+
+  file_info server_files[100];
+  stream_read(sockfd, (void*)server_files, sizeof(file_info)*10);
+
+  qsort(server_files, 10, sizeof(file_info), cmp);
   for(int i=0; i<10; i++){
-    puts(info[i].path);
+    puts(server_files[i].path);
   }
 
+  for(int i=0; i<length; i++){
+    if( isPresentOnServer(local_version[i], server_files, 10) == NULL)
+      if(remove(local_version[i].path) != 0)
+	if(rmdir(local_version[i].path) != 0)
+	  printf("Could not delete file: %s", local_version[i].path);
+  }
+    
   close(sockfd);  
 }
