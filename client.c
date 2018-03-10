@@ -20,8 +20,8 @@ void merror(char *msg)
 
 
 int main(void){
-  int fd, sockfd;
-  struct sockaddr_in local_addr, remote_addr;
+  int sockfd;
+  struct sockaddr_in local_addr;
 
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if(sockfd == -1){
@@ -47,5 +47,5 @@ int main(void){
   }
 
   close(sockfd);
-  close(fd);
+  
 }

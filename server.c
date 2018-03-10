@@ -1,14 +1,16 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include "netio.h"
+#include <string.h>
+
 
 #define SERVER_PORT 5678
 int length;
@@ -19,7 +21,7 @@ void merror(char *msg)
   exit(1);
 }
 
-int getFiles(file_info *files, char* path){
+void getFiles(file_info *files, char* path){
   DIR *d;
   struct dirent *sdir;
   struct stat mstat;
@@ -38,24 +40,24 @@ int getFiles(file_info *files, char* path){
        continue;
 
     if(S_ISDIR(mstat.st_mode)){
-      strncpy(files->path, newpath, sizeof(files->path)); 
+      strncpy(files[length].path, newpath, sizeof(files[length].path)); 
       
-      files->size = (uint32_t)mstat.st_size;
-      files->timestamp = (int32_t)mstat.st_mtime;
-      files->permissions = (int)mstat.st_mode; 
+      files[length].size = (uint32_t)mstat.st_size;
+      files[length].timestamp = (int32_t)mstat.st_mtime;
+      files[length].permissions = (int)mstat.st_mode; 
       
-      files++;
+      //files++;
       length++;
       getFiles(files, newpath);
     }else if(S_ISREG(mstat.st_mode) || S_ISLNK(mstat.st_mode)){
-      strncpy(files->path, newpath, sizeof(files->path)); 
+      strncpy(files[length].path, newpath, sizeof(files[length].path)); 
     
       //puts(files->path);
-      files->size = (uint32_t)mstat.st_size;
-      files->timestamp = (int32_t)mstat.st_mtime;
-      files->permissions = (int)mstat.st_mode; 
+      files[length].size = (uint32_t)mstat.st_size;
+      files[length].timestamp = (int32_t)mstat.st_mtime;
+      files[length].permissions = (int)mstat.st_mode; 
       
-      files++;
+      //files++;
       length++;
     }
   }
@@ -65,9 +67,8 @@ int getFiles(file_info *files, char* path){
 
 int main(void){
 
-  int fd, sockfd, connfd;
+  int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
-  int nread, nfis; 
   socklen_t rlen = sizeof(rmt_addr);
   int clientSize = 10;
   struct sockaddr_in *client_list = malloc(clientSize*sizeof(struct sockaddr_in));
@@ -126,7 +127,6 @@ int main(void){
     stream_write(connfd, (void *)files, sizeof(file_info) * length);
 
     close(connfd);
-    close(fd);
   }
 
   free(files);
