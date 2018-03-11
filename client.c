@@ -118,9 +118,9 @@ int main(int argc, char** argv)
   for(int i=0; i<length; i++)
     {
 
-      if( (sfile = isPresentOnServer(local_version[i], server_files, 10)) == NULL)
+      if( (sfile = isPresentOnServer(local_version[i], server_files, server_files_length)) == NULL)
 	{
-
+	  printf("Deleting %s\n", local_version[i].path);
 	  if(remove(local_version[i].path) != 0)
 	    if(rmdir(local_version[i].path) != 0)
 	      printf("Could not delete file: %s", local_version[i].path);

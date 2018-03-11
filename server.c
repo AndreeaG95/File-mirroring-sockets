@@ -28,9 +28,6 @@ int main(int argc, char* argv[]){
   char* root = argv[1];
   
   chdir(root);
-
-  int length = 0;
-  getFiles(files, ".", &length);
    
   // PF_INET=TCP/UP, 0=implicit.
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -61,6 +58,9 @@ int main(int argc, char* argv[]){
 
     if(pid == 0) // new process
       {
+	int length = 0;
+	getFiles(files, ".", &length);
+	
 	// talk with client
         stream_write(connfd, (void *)&length, sizeof(int));
 	stream_write(connfd, (void *)files, sizeof(file_info) * length);
@@ -78,15 +78,24 @@ int main(int argc, char* argv[]){
 		char *file_name = malloc(size+1);
 		if (!file_name)
 		  merror("Malloc filename");
+		file_name[size] = '\0';
 		stream_read(connfd, file_name, size);
 		printf("Sending: %s\n", file_name);
 		send_file(connfd, file_name);
 		free(file_name);
-	      }
-	    
-	    
+	      }    
 	  }
 	printf("Connection ending\n");
+	for(int i=0; i<length; i++){
+	  puts(files[i].path);
+	}
+	
+	// Send tree status.
+	printf("SIZE: %d \n",length);
+	
+	free(files);
+   
+
 	exit(0);
       }
     else if(pid == -1) // fork error
@@ -98,18 +107,8 @@ int main(int argc, char* argv[]){
       {
 	close(connfd);
       }
-
-
-
-    for(int i=0; i<10; i++){
-      puts(files[i].path);
-    }
-
-    // Send tree status.
-    printf("SIZE: %d \n",length);
   }
 
-  free(files);
   close(sockfd);
   exit(0);
 
