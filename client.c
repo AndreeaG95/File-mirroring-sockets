@@ -11,7 +11,7 @@
 #include "netio.h"
 #include "filester.h"
 
-#define SERVER_ADDRESS "127.0.0.1"
+//#define SERVER_ADDRESS "192.168.0.117"
 #define SERVER_PORT     5678
 
 /* 
@@ -70,9 +70,12 @@ int main(int argc, char** argv)
   int sockfd;
   char root[30];
   struct sockaddr_in local_addr;
+  char *SERVER_ADDRESS;
 
-  if(argc != 2)
-    merror("Please add root name as first argument");
+  if(argc != 3)
+    printf("Please call: %s localFolder serverIp", argv[0]);
+  
+  SERVER_ADDRESS = argv[2];
 
   strncpy(root, argv[1], sizeof(root));
 
