@@ -51,9 +51,10 @@ int sizeDifferent(file_info local, file_info server)
  */
 file_info* isOnClient(file_info server_file, file_info* local_files, int length)
 {
-  for(int i=0; i<length; i++)
+  for(int i=0; i<length; i++){
     if(strcmp(server_file.path, local_files[i].path) == 0)
       return &local_files[i];
+  }
   
   return NULL;
 }
@@ -92,8 +93,6 @@ int main(int argc, char** argv)
     merror("Unable to connect to socket");
   
   
-
-  
   file_info *local_version = malloc(100*sizeof(file_info));
   int length = 0;
   chdir(root);
@@ -101,28 +100,21 @@ int main(int argc, char** argv)
   getFiles(local_version, ".", &length);
   qsort(local_version, length, sizeof(file_info), cmp);   
 
-  
-  get_file(sockfd, "test.txt");
-  get_file(sockfd, "testache.txt");
-  //while(1);
-  close(sockfd);
-  exit(0); //exit not to delete stuff
-
-
+ 
   file_info server_files[100];
   int server_files_length;
   stream_read(sockfd, (void*)&server_files_length, sizeof(int));
   printf("size= %d ", server_files_length);
-
+  
   stream_read(sockfd, (void*)server_files, sizeof(file_info)*server_files_length);
 
   qsort(server_files, server_files_length, sizeof(file_info), cmp);
   for(int i=0; i<server_files_length; i++){
     puts(server_files[i].path);
   }
-  
-  file_info *sfile;
+
   // Delete local files that are not on server or get them if they are modified.
+  file_info *sfile;
   for(int i=0; i<length; i++)
     {
 
@@ -137,8 +129,7 @@ int main(int argc, char** argv)
 	{
 	  file_info server_file = *sfile;
 	  if(dateModified(local_version[i], server_file) || sizeDifferent(local_version[i], server_file)){
-	    ;
-	    //TODO(): get desired file from the server and replace it.
+	    get_file(sockfd, server_file.path);
 	  }
       
 	}
@@ -146,14 +137,13 @@ int main(int argc, char** argv)
     }
 
   // Get the files from the server that are not on client.
-  for(int i=0; i<10; i++){
+  for(int i=0; i<server_files_length; i++){
 
     if( (sfile = isOnClient(server_files[i], local_version, length) ) == NULL)
       {
-	;
+	get_file(sockfd, server_files[i].path);
       }
-      // TODO(): get the file from the server.
   }
-    
+
   close(sockfd);  
 }
