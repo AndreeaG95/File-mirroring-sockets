@@ -18,8 +18,10 @@
 int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
+  int max_size = 100; 
   socklen_t rlen = sizeof(rmt_addr);
-  file_info *files = malloc(100*sizeof(file_info));
+
+  file_info *files = malloc(max_size*sizeof(file_info));
   
   if (argc != 2){
 	merror("Please call: exename softwareFolder");
@@ -30,7 +32,7 @@ int main(int argc, char* argv[]){
   chdir(root);
 
   int length = 0;
-  getFiles(files, ".", &length);
+  getFiles(files, ".", &length, &max_size);
    
   // PF_INET=TCP/UP, 0=implicit.
   sockfd = socket(PF_INET, SOCK_STREAM, 0);

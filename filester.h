@@ -5,7 +5,6 @@ typedef struct file_info{
   char path[256];
   uint32_t size;
   int32_t timestamp;
-  int permissions;
 }file_info;
 
 void getFiles(file_info *files, char* path, int* length);
