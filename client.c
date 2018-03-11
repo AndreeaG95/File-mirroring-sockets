@@ -69,6 +69,7 @@ int main(int argc, char** argv)
 {
   int sockfd;
   char root[30];
+  int max_length = 100;
   struct sockaddr_in local_addr;
 
   if(argc != 2)
@@ -93,19 +94,19 @@ int main(int argc, char** argv)
     merror("Unable to connect to socket");
   
   
-  file_info *local_version = malloc(100*sizeof(file_info));
+  file_info *local_version = malloc(max_length*sizeof(file_info));
   int length = 0;
   chdir(root);
 
-  getFiles(local_version, ".", &length);
+  getFiles(local_version, ".", &length, &max_length);
   qsort(local_version, length, sizeof(file_info), cmp);   
 
- 
-  file_info server_files[100];
   int server_files_length;
+  file_info* server_files;
   stream_read(sockfd, (void*)&server_files_length, sizeof(int));
   printf("size= %d ", server_files_length);
   
+  server_files = malloc(server_files_length*sizeof(file_info));
   stream_read(sockfd, (void*)server_files, sizeof(file_info)*server_files_length);
 
   qsort(server_files, server_files_length, sizeof(file_info), cmp);
@@ -118,9 +119,9 @@ int main(int argc, char** argv)
   for(int i=0; i<length; i++)
     {
 
-      if( (sfile = isPresentOnServer(local_version[i], server_files, 10)) == NULL)
+      if( (sfile = isPresentOnServer(local_version[i], server_files, server_files_length)) == NULL)
 	{
-
+	  printf("Deleting %s\n", local_version[i].path);
 	  if(remove(local_version[i].path) != 0)
 	    if(rmdir(local_version[i].path) != 0)
 	      printf("Could not delete file: %s", local_version[i].path);

@@ -7,6 +7,6 @@ typedef struct file_info{
   int32_t timestamp;
 }file_info;
 
-void getFiles(file_info *files, char* path, int* length);
+void getFiles(file_info *files, char* path, int* length, int* max_size);
 
 void merror(char *msg);

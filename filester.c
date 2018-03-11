@@ -39,7 +39,8 @@ void getFiles(file_info *files, char* path, int* length, int* max_size ){
     // Expand memory for more files.    
     if(*length >= *max_size){
       *max_size = (*max_size) + (*max_size)/2;
-      realloc(files, (*max_size)*sizeof(file_info);
+      if ( (files = realloc(files, (*max_size)*sizeof(file_info))) == NULL)
+	   merror("Could not allocate memory for files");
     }
 
     if(S_ISDIR(mstat.st_mode)){
@@ -47,7 +48,6 @@ void getFiles(file_info *files, char* path, int* length, int* max_size ){
       
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
-      files[*length].permissions = (int)mstat.st_mode; 
       
       (*length)++;
       getFiles(files, newpath, length, max_size);
@@ -56,7 +56,6 @@ void getFiles(file_info *files, char* path, int* length, int* max_size ){
     
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
-      files[*length].permissions = (int)mstat.st_mode; 
       
       (*length)++;
     }
