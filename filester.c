@@ -18,7 +18,7 @@ void merror(char *msg)
   exit(1);
 }
 
-void getFiles(file_info *files, char* path, int* length){
+void getFiles(file_info *files, char* path, int* length, int* max_size ){
   DIR *d;
   struct dirent *sdir;
   struct stat mstat;
@@ -36,21 +36,26 @@ void getFiles(file_info *files, char* path, int* length){
     if((strcmp(sdir->d_name, "..") == 0) || (strcmp(sdir->d_name, ".") == 0 ))
        continue;
 
+    // Expand memory for more files.    
+    if(*length >= *max_size){
+      *max_size = (*max_size) + (*max_size)/2;
+      if ( (files = realloc(files, (*max_size)*sizeof(file_info))) == NULL)
+	   merror("Could not allocate memory for files");
+    }
+
     if(S_ISDIR(mstat.st_mode)){
       strncpy(files[*length].path, newpath, sizeof(files[*length].path)); 
       
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
-      files[*length].permissions = (int)mstat.st_mode; 
       
       (*length)++;
-      getFiles(files, newpath, length);
+      getFiles(files, newpath, length, max_size);
     }else if(S_ISREG(mstat.st_mode) || S_ISLNK(mstat.st_mode)){
       strncpy(files[*length].path, newpath, sizeof(files[*length].path)); 
     
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
-      files[*length].permissions = (int)mstat.st_mode; 
       
       (*length)++;
     }

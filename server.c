@@ -18,8 +18,10 @@
 int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
+  int max_length = 100; 
   socklen_t rlen = sizeof(rmt_addr);
-  file_info *files = malloc(100*sizeof(file_info));
+
+  file_info *files = malloc(max_length*sizeof(file_info));
   
   if (argc != 2){
 	merror("Please call: exename softwareFolder");
@@ -28,6 +30,7 @@ int main(int argc, char* argv[]){
   char* root = argv[1];
   
   chdir(root);
+  
    
   // PF_INET=TCP/UP, 0=implicit.
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
@@ -59,7 +62,8 @@ int main(int argc, char* argv[]){
     if(pid == 0) // new process
       {
 	int length = 0;
-	getFiles(files, ".", &length);
+	max_length = 100;
+	getFiles(files, ".", &length, &max_length);
 	
 	// talk with client
         stream_write(connfd, (void *)&length, sizeof(int));
@@ -86,9 +90,6 @@ int main(int argc, char* argv[]){
 	      }    
 	  }
 	printf("Connection ending\n");
-	for(int i=0; i<length; i++){
-	  puts(files[i].path);
-	}
 	
 	// Send tree status.
 	printf("SIZE: %d \n",length);
@@ -107,8 +108,15 @@ int main(int argc, char* argv[]){
       {
 	close(connfd);
       }
+
+
+
+    for(int i=0; i<10; i++){
+      puts(files[i].path);
+    }
   }
 
+ 
   close(sockfd);
   exit(0);
 
