@@ -11,8 +11,23 @@
 #include "netio.h"
 #include "filester.h"
 
-//#define SERVER_ADDRESS "192.168.0.117"
 #define SERVER_PORT     5678
+
+int notOkToCont(const char* lFileName, const char* sFileName){
+	int result = 0;
+	int len_l_file = strlen(lFileName);
+	int len_s_file = strlen(sFileName);
+	int min_length = len_l_file > len_s_file ? len_s_file : len_l_file;
+
+	for (int i=0; i < min_length; i++){
+		if (sFileName[i] > lFileName[i]){
+				result = 1;
+				break;
+		}
+	}
+
+	return result;
+}
 
 /* 
  *isPresentOnServer: checks if a file is present on the server version and returns it. 
@@ -20,15 +35,20 @@
  */
 file_info* isPresentOnServer(file_info local_file, file_info* server_files, int length)
 {
-  for(int i=0; i<length; i++)
+  for(int i=0; i<length; i++){
     if(strcmp(local_file.path, server_files[i].path) == 0)
       return &server_files[i];
+
+	if (notOkToCont(local_file.path, server_files[i].path)){
+		break;
+	}
+  }
   
   return NULL;
 }
 
 /*
- * dateModified: returns 0 if the file on the server has the same timestamp as the local one
+ * datemodified: returns 0 if the file on the server has the same timestamp as the local one
  * and the difference otherwise.
  */
 int dateModified(file_info local, file_info server)
@@ -37,7 +57,7 @@ int dateModified(file_info local, file_info server)
 }
 
 /*
- * sizeDifferent: returns 0 if the file on the server has the same size ad the local one
+ * sizedifferent: returns 0 if the file on the server has the same size ad the local one
  * and an the difference otherwise
  */
 int sizeDifferent(file_info local, file_info server)
@@ -54,6 +74,14 @@ file_info* isOnClient(file_info server_file, file_info* local_files, int length)
   for(int i=0; i<length; i++){
     if(strcmp(server_file.path, local_files[i].path) == 0)
       return &local_files[i];
+
+	//TODO modifiy this function to work both ways
+	/*
+	if (notOkToCont(local_files[i].path, server_file.path)){
+		printf("stopped after = %s \n", local_files[i].path);
+		break;
+	}
+	*/
   }
   
   return NULL;
@@ -73,8 +101,11 @@ int main(int argc, char** argv)
   struct sockaddr_in local_addr;
   char *SERVER_ADDRESS;
 
-  if(argc != 3)
-    printf("Please call: %s localFolder serverIp", argv[0]);
+  if(argc != 3){
+    char error_msg[30];
+    sprintf(error_msg,"Please call: %s localFolder serverIp \n", argv[0]);
+  	merror(error_msg);
+  }
   
   SERVER_ADDRESS = argv[2];
 
@@ -107,15 +138,18 @@ int main(int argc, char** argv)
   int server_files_length;
   file_info* server_files;
   stream_read(sockfd, (void*)&server_files_length, sizeof(int));
-  printf("size= %d ", server_files_length);
   
   server_files = malloc(server_files_length*sizeof(file_info));
   stream_read(sockfd, (void*)server_files, sizeof(file_info)*server_files_length);
 
   qsort(server_files, server_files_length, sizeof(file_info), cmp);
+
+  printf("Files on server: \n");
   for(int i=0; i<server_files_length; i++){
     puts(server_files[i].path);
   }
+
+  printf("\n");
 
   // Delete local files that are not on server or get them if they are modified.
   file_info *sfile;
