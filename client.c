@@ -91,12 +91,23 @@ int main(int argc, char** argv)
   if(connect(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
     merror("Unable to connect to socket");
   
+  
+
+  
   file_info *local_version = malloc(100*sizeof(file_info));
   int length = 0;
   chdir(root);
 
   getFiles(local_version, ".", &length);
   qsort(local_version, length, sizeof(file_info), cmp);   
+
+  
+  get_file(sockfd, "test.txt");
+  get_file(sockfd, "testache.txt");
+  //while(1);
+  close(sockfd);
+  exit(0); //exit not to delete stuff
+
 
   file_info server_files[100];
   stream_read(sockfd, (void*)server_files, sizeof(file_info)*10);

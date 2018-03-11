@@ -19,8 +19,6 @@ int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
   socklen_t rlen = sizeof(rmt_addr);
-  int clientSize = 10;
-  struct sockaddr_in *client_list = malloc(clientSize*sizeof(struct sockaddr_in));
   file_info *files = malloc(100*sizeof(file_info));
   
   if (argc != 2){
@@ -33,10 +31,7 @@ int main(int argc, char* argv[]){
 
   int length = 0;
   getFiles(files, ".", &length);
- 
-  if(client_list == NULL)
-    merror("Could not allocate memory for server clients."); 
-  
+   
   // PF_INET=TCP/UP, 0=implicit.
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -54,25 +49,55 @@ int main(int argc, char* argv[]){
   if (listen(sockfd, 5) == -1)
     merror("Unable to listen on socket");
 
-  int clients=0;
-  while(clients < 100){
+  while(1){
     
     // Create a new socket for each connection.
     connfd = accept(sockfd, (struct sockaddr *)&rmt_addr, &rlen);
     
     if(connfd == -1)
       merror("Could not accept connection");
+    
+    pid_t pid = fork();
 
-    client_list[clients] = rmt_addr;
-    clients++;
+    if(pid == 0) // new process
+      {
+	// talk with client
+	//stream_write(connfd, (void *)files, sizeof(file_info) * length);
+	//send_file(sockfd, "./test.txt");
+	uint32_t command=0, size;
+	int nread;
+	while(0 < (nread = stream_read(connfd, &command, sizeof command)))
+	  {
+	    if(command == 0xF00D)
+	      {
+		printf("got food\n");
+		stream_read(connfd, &size, sizeof size);
+		printf("%d\n", size);
+		char *file_name = malloc(size+1);
+		if (!file_name)
+		  merror("Malloc filename");
+		stream_read(connfd, file_name, size);
+		printf("Sending: %s\n", file_name);
+		send_file(connfd, file_name);
+		free(file_name);
+	      }
+	    
+	    
+	  }
+	printf("Connection ending\n");
+	exit(0);
+      }
+    else if(pid == -1) // fork error
+      {
+	merror("Fork error");
+      }
 
-    if(clients >= clientSize){
-      clientSize = clientSize + clientSize/2;
-      client_list = realloc(client_list, clientSize);
+    else  // parent process
+      {
+	close(connfd);
+      }
 
-      if (client_list == NULL)
-	merror("Unable to add memory for client");
-    }    
+
 
     for(int i=0; i<10; i++){
       puts(files[i].path);
@@ -80,13 +105,9 @@ int main(int argc, char* argv[]){
 
     // Send tree status.
     printf("SIZE: %d \n",length);
-    stream_write(connfd, (void *)files, sizeof(file_info) * length);
-
-    close(connfd);
   }
 
   free(files);
-  free(client_list);
   close(sockfd);
   exit(0);
 
