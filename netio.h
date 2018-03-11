@@ -12,4 +12,4 @@ int stream_write(int sockfd, const void *buff, int len);
 
 int send_file(int sockfd, const char *file);
 
-int get_file(int sockfd, const char *file);
+int get_file(int sockfd, const char *file, uint16_t fileIndex);

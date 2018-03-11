@@ -15,6 +15,12 @@
 
 #define SERVER_PORT 5678
 
+
+int cmp(const void* a, const void* b)
+{
+  return strcmp( ((file_info *)a)->path, ((file_info *)b)->path );
+}
+
 int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
@@ -64,29 +70,26 @@ int main(int argc, char* argv[]){
 	int length = 0;
 	max_length = 100;
 	getFiles(files, ".", &length, &max_length);
-	
+	qsort(files, length, sizeof(file_info), cmp);
+  
 	// talk with client
         stream_write(connfd, (void *)&length, sizeof(int));
 	stream_write(connfd, (void *)files, sizeof(file_info) * length);
 	
 	//send_file(sockfd, "./test.txt");
-	uint32_t command=0, size;
+	uint32_t command=0;
+	uint16_t index;
 	int nread;
 	while(0 < (nread = stream_read(connfd, &command, sizeof command)))
 	  {
 	    if(command == 0xF00D)
 	      {
 		printf("got food\n");
-		stream_read(connfd, &size, sizeof size);
-		printf("%d\n", size);
-		char *file_name = malloc(size+1);
-		if (!file_name)
-		  merror("Malloc filename");
-		file_name[size] = '\0';
-		stream_read(connfd, file_name, size);
-		printf("Sending: %s\n", file_name);
-		send_file(connfd, file_name);
-		free(file_name);
+		
+		stream_read(connfd, &index, sizeof index); 
+
+		printf("Sending: %s\n", files[index].path);
+		send_file(connfd, files[index].path);
 	      }    
 	  }
 	printf("Connection ending\n");
@@ -109,11 +112,6 @@ int main(int argc, char* argv[]){
 	close(connfd);
       }
 
-
-
-    for(int i=0; i<10; i++){
-      puts(files[i].path);
-    }
   }
 
  
