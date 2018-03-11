@@ -15,16 +15,16 @@
 #define SERVER_PORT     5678
 
 /* 
- *isPresentOnServer: checks if a file is present on the server version and returns it. 
- * Otherwise returns null.
+ *isPresentOnServer: checks if a file is present on the server version and returns the index of the file. 
+ * Otherwise returns -1.
  */
-file_info* isPresentOnServer(file_info local_file, file_info* server_files, int length)
+int isPresentOnServer(file_info local_file, file_info* server_files, int length)
 {
   for(int i=0; i<length; i++)
     if(strcmp(local_file.path, server_files[i].path) == 0)
-      return &server_files[i];
+      return i;
   
-  return NULL;
+  return -1;
 }
 
 /*
@@ -121,11 +121,11 @@ int main(int argc, char** argv)
   }
 
   // Delete local files that are not on server or get them if they are modified.
-  file_info *sfile;
+  int fileOnServer;
   for(int i=0; i<length; i++)
     {
 
-      if( (sfile = isPresentOnServer(local_version[i], server_files, server_files_length)) == NULL)
+      if( (fileOnServer = isPresentOnServer(local_version[i], server_files, server_files_length)) == -1)
 	{
 	  printf("Deleting %s\n", local_version[i].path);
 	  if(remove(local_version[i].path) != 0)
@@ -134,9 +134,8 @@ int main(int argc, char** argv)
 	}
       else
 	{
-	  file_info server_file = *sfile;
-	  if(dateModified(local_version[i], server_file) || sizeDifferent(local_version[i], server_file)){
-	    get_file(sockfd, server_file.path);
+	  if(dateModified(local_version[i], server_files[fileOnServer]) || sizeDifferent(local_version[i], server_files[fileOnServer])){
+	    get_file(sockfd, server_files[fileOnServer].path, fileOnServer);
 	  }
       
 	}
@@ -146,9 +145,9 @@ int main(int argc, char** argv)
   // Get the files from the server that are not on client.
   for(int i=0; i<server_files_length; i++){
 
-    if( (sfile = isOnClient(server_files[i], local_version, length) ) == NULL)
+    if( isOnClient(server_files[i], local_version, length)  == NULL)
       {
-	get_file(sockfd, server_files[i].path);
+	get_file(sockfd, server_files[i].path, i);
       }
   }
 
