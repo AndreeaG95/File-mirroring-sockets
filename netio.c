@@ -9,6 +9,7 @@
 #include<stdio.h>
 #include <fcntl.h>
 #include <time.h>
+#include<utime.h>
 
 #define MAXBUF 1024
 
@@ -40,6 +41,8 @@ int set_addr(struct sockaddr_in *addr, char *name, u_int32_t inaddr, short port)
 int stream_read(int sockfd, void *buff, int len){
   int nread;
   int remain = len;
+
+  //printf("Reading %d bytes\n", len);
   
   while(remain > 0){
     if( -1 == (nread = read(sockfd, buff, remain)) )
@@ -55,6 +58,8 @@ int stream_read(int sockfd, void *buff, int len){
 int stream_write(int sockfd, const void *buff, int len){
   int nrw;
   int rem = len;
+  
+  //printf("Writing %d bytes\n", len);
 
   while(rem > 0){
     if ( -1 == (nrw = write(sockfd, buff, rem)))
@@ -80,26 +85,44 @@ int send_file(int sockfd, const char *file)
 
   struct stat bstat;
   fstat(fd, &bstat);
-  //  uint32_t mode = bstat.st_mode;
+  uint32_t mode = bstat.st_mode;
+  uint32_t size = bstat.st_size;
+  uint32_t mtime = bstat.st_mtime;
 
-  stream_write(sockfd, &bstat.st_size, sizeof bstat.st_size);
-  stream_write(sockfd, &bstat.st_mode, sizeof bstat.st_mode);
-  stream_write(sockfd, &bstat.st_mtime, sizeof bstat.st_mtime);
-
-
-  while(0 < (nread = read(fd, buf, MAXBUF)))
+  if(
+     stream_write(sockfd, &size, sizeof size) != sizeof size ||
+     stream_write(sockfd, &mode, sizeof mode) != sizeof mode ||
+     stream_write(sockfd, &mtime, sizeof mtime) != sizeof mtime)
     {
-      stream_write(sockfd, buf, nread);
+      printf("Could not send file info for %s\n", file);
+      close(fd);
+      return -1;
     }
-  if (nread < 0)
-    {
-      printf("Error reading from file.\n");
-      //send error code
-      //      return -1;
-    }
+
   
+  if (!S_ISDIR(mode))
+    {  
+      while(0 < (nread = read(fd, buf, MAXBUF)))
+	{
+	  if(stream_write(sockfd, buf, nread) != nread)
+	    {
+	      puts("Could not send file.");
+	      close(fd);
+	      return -1;
+	    }
+	}
+      
+      if (nread < 0)
+	{
+	  puts("Error reading from file.\n");
+	  //send error code
+	  close(fd);
+	  return -1;
+	}
+    }
+
   close(fd);
-  
+  printf("%s sent.\n", file);
   return 0;
 }
 
@@ -126,50 +149,72 @@ int get_file(int sockfd, const char* file)
   if (request_file(sockfd, file))
     return -1;
 
-  off_t st_size;
-  time_t mtime;
-  mode_t st_mode;
+  uint32_t st_size;
+  uint32_t mtime;
+  uint32_t st_mode;
 
-  stream_read(sockfd, &st_size, sizeof st_size);
-  stream_read(sockfd, &st_mode, sizeof st_mode);
-  stream_read(sockfd, &mtime, sizeof mtime);
-  printf("%d %X %X\n", st_size, st_mode, mtime);
-
-
-
-  int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 00644);
-
-  if (fd == -1)
+  if ( stream_read(sockfd, &st_size, sizeof st_size) != sizeof st_size ||
+       stream_read(sockfd, &st_mode, sizeof st_mode) != sizeof st_mode ||
+       stream_read(sockfd, &mtime, sizeof mtime) != sizeof mtime)
     {
-      printf("Error creating %s\n", file);
+      puts("Error reading file data.");
       return -1;
     }
 
+  printf("%d %X %X\n", st_size, st_mode, mtime);
+
+
   
-  int nread;
-  char buf[MAXBUF];
-  
-  
-  while(st_size > 0)
-    { 
-      nread = stream_read(sockfd, buf, st_size < MAXBUF ? st_size : MAXBUF);
-      st_size -= MAXBUF;
-      if (nread  < 1) {
-	puts("Error reading\n");
-	break;
-      }
-      if (-1 == write(fd, buf, nread)) 
+
+  if (S_ISDIR(st_mode)) // directory?
+    {
+      if(mkdir(file, st_mode))
 	{
-	  printf("Error writing to %s\n", file);
-	  close(fd);
-	  return -1;
+	  puts("Could not create directory.");
 	}
     }
-  printf("Got file %s\n", file);
-  close(fd);
-  if (nread < 0)
-    return -1;
   else
-    return 0;
+    {
+      int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 00644);
+
+      if (fd == -1)
+	{
+	  printf("Error creating %s\n", file);
+	  return -1;
+	}
+      int nread;
+      char buf[MAXBUF];
+      
+      uint32_t times = st_size / MAXBUF + 1;
+      uint32_t remaining = st_size % MAXBUF;
+      while(times)
+	{
+	  times--; 
+	  nread = stream_read(sockfd, buf, times ? MAXBUF : remaining);
+	  if (nread  != (times ? MAXBUF : remaining)) {
+	    puts("Error reading\n");
+	    break;
+	  }
+	  if (nread != write(fd, buf, nread)) 
+	    {
+	      printf("Error writing to %s\n", file);
+	      close(fd);
+	      return -1;
+	    }
+	}
+      printf("Got file %s\n", file);
+      if(fchmod(fd, st_mode))
+	puts("Could not change file permissions.");
+      close(fd);
+    }
+  
+  struct utimbuf tim = {mtime, mtime};
+  if(utime(file, &tim))
+    {
+      puts("Could not change time.");
+      return -1;
+    }
+
+  return 0;
 }
 
