@@ -105,6 +105,14 @@ int main(int argc, char* argv[]){
 
     // Send tree status.
     printf("SIZE: %d \n",length);
+<<<<<<< HEAD
+=======
+
+    stream_write(connfd, (void *)&length, sizeof(int));
+    stream_write(connfd, (void *)files, sizeof(file_info) * length);
+
+    close(connfd);
+>>>>>>> dd90ea8ac93f4a315635646817a3f93f3a6769c4
   }
 
   free(files);

@@ -110,10 +110,14 @@ int main(int argc, char** argv)
 
 
   file_info server_files[100];
-  stream_read(sockfd, (void*)server_files, sizeof(file_info)*10);
+  int server_files_length;
+  stream_read(sockfd, (void*)&server_files_length, sizeof(int));
+  printf("size= %d ", server_files_length);
 
-  qsort(server_files, 10, sizeof(file_info), cmp);
-  for(int i=0; i<10; i++){
+  stream_read(sockfd, (void*)server_files, sizeof(file_info)*server_files_length);
+
+  qsort(server_files, server_files_length, sizeof(file_info), cmp);
+  for(int i=0; i<server_files_length; i++){
     puts(server_files[i].path);
   }
   
