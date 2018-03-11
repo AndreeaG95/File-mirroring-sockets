@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <sys/types.h>
+#include <dirent.h>
+
+
 
 typedef struct file_info{
-  char path[256];
+  char path[PATH_MAX];
   uint32_t size;
   int32_t timestamp;
 }file_info;

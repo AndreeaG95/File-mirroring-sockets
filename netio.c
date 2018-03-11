@@ -163,9 +163,6 @@ int get_file(int sockfd, const char* file)
 
   printf("%d %X %X\n", st_size, st_mode, mtime);
 
-
-  
-
   if (S_ISDIR(st_mode)) // directory?
     {
       if(mkdir(file, st_mode))
@@ -175,6 +172,7 @@ int get_file(int sockfd, const char* file)
     }
   else
     {
+      //remove(file);
       int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 00644);
 
       if (fd == -1)

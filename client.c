@@ -74,7 +74,10 @@ int main(int argc, char** argv)
   char *SERVER_ADDRESS;
 
   if(argc != 3)
-    printf("Please call: %s localFolder serverIp", argv[0]);
+    {
+      printf("Please call: %s localFolder serverIp\n", argv[0]);
+      exit(0);
+    }
   
   SERVER_ADDRESS = argv[2];
 
@@ -127,7 +130,7 @@ int main(int argc, char** argv)
 	  printf("Deleting %s\n", local_version[i].path);
 	  if(remove(local_version[i].path) != 0)
 	    if(rmdir(local_version[i].path) != 0)
-	      printf("Could not delete file: %s", local_version[i].path);
+	      printf("Could not delete file: %s\n", local_version[i].path);
 	}
       else
 	{
