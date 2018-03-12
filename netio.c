@@ -6,13 +6,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <netdb.h>
+#include "filester.h"
 #include "netio.h"
 #include<stdio.h>
 #include <fcntl.h>
 #include <time.h>
 #include<utime.h>
 
-#define MAXBUF 1024
+
+#define MAXBUF 4096
 
 int set_addr(struct sockaddr_in *addr, char *name, u_int32_t inaddr, short port){
 
@@ -69,6 +71,38 @@ int stream_write(int sockfd, const void *buff, int len){
     buff += nrw;
   }
   return len-rem;
+}
+
+
+
+int get_fileinfo(int sockfd, file_info* fileinfo)
+{
+  uint16_t size;
+
+  stream_read(sockfd, &size, sizeof size);
+  if (size >= PATH_MAX)
+    return -1;
+
+  stream_read(sockfd, &(fileinfo->path), size);
+  fileinfo->path[size] = '\0';
+
+  stream_read(sockfd, &(fileinfo->size), sizeof(fileinfo->size));
+  stream_read(sockfd, &(fileinfo->timestamp), sizeof(fileinfo->timestamp));
+  
+  return 0;
+}
+
+
+int send_fileinfo(int sockfd, const file_info* fileinfo)
+{
+  uint16_t len = strlen(fileinfo->path);
+
+  stream_write(sockfd, &len, sizeof len);
+  stream_write(sockfd, &(fileinfo->path), len);
+  stream_write(sockfd, &(fileinfo->size), sizeof(fileinfo->size));
+  stream_write(sockfd, &(fileinfo->timestamp), sizeof(fileinfo->timestamp));
+  
+  return 0;
 }
 
 
@@ -132,9 +166,9 @@ int request_file(int sockfd, uint16_t fileIndex)
   uint32_t rq = 0xF00D;
 
 
-  printf("Requesting %d\n", fileIndex);
-  stream_write(sockfd, &rq, sizeof rq);
-  stream_write(sockfd, &fileIndex, sizeof fileIndex);
+  if (stream_write(sockfd, &rq, sizeof rq) != sizeof rq ||
+      stream_write(sockfd, &fileIndex, sizeof fileIndex) != sizeof fileIndex)
+    return -1;
 
   //  stream_read(sockfd, filesize, sizeof filesize);
 
@@ -144,7 +178,8 @@ int request_file(int sockfd, uint16_t fileIndex)
 
 int get_file(int sockfd, const char* file, uint16_t fileIndex)
 {
-
+  
+  printf("Requesting %s(%d)\n", file, fileIndex);
   if (request_file(sockfd, fileIndex))
     return -1;
 

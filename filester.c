@@ -18,7 +18,40 @@ void merror(char *msg)
   exit(1);
 }
 
-void getFiles(file_info *files, char* path, int* length, int* max_size ){
+
+int remove_file(const char *dirname)
+{
+
+  if (!remove(dirname))
+    return 0;
+
+  DIR *dir;
+  struct dirent *entry;
+  char path[PATH_MAX];
+
+  dir = opendir(dirname);
+  if (dir == NULL) {
+    perror("Error opendir()");
+    return -1;
+  }
+
+  while ((entry = readdir(dir)) != NULL) {
+    if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
+      snprintf(path, (size_t) PATH_MAX, "%s/%s", dirname, entry->d_name);
+      remove_file(path);
+    }
+
+  }
+  closedir(dir);
+  
+  remove(dirname);
+  
+  return 0;
+}
+
+
+
+void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size ){
   DIR *d;
   struct dirent *sdir;
   struct stat mstat;

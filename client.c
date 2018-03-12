@@ -69,15 +69,22 @@ int main(int argc, char** argv)
 {
   int sockfd;
   char root[30];
-  int max_length = 100;
   struct sockaddr_in local_addr;
   char *SERVER_ADDRESS;
 
-  if(argc != 3)
+  if(argc < 3)
     {
       printf("Please call: %s localFolder serverIp\n", argv[0]);
       exit(0);
     }
+
+  int delete = 0;
+  if (argc > 3 && !strcmp(argv[3], "-d"))
+    delete = 1;
+  else {
+    puts("Delete flag not specified.");
+  }
+  
   
   SERVER_ADDRESS = argv[2];
 
@@ -99,25 +106,38 @@ int main(int argc, char** argv)
   if(connect(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
     merror("Unable to connect to socket");
   
+  uint32_t length = 0;
+  uint32_t max_length = 100;
+
+  file_info *local_version = malloc(max_length * sizeof(file_info));
   
-  file_info *local_version = malloc(max_length*sizeof(file_info));
-  int length = 0;
   chdir(root);
 
   getFiles(local_version, ".", &length, &max_length);
   qsort(local_version, length, sizeof(file_info), cmp);   
 
-  int server_files_length;
+  uint32_t server_files_length;
   file_info* server_files;
-  stream_read(sockfd, (void*)&server_files_length, sizeof(int));
-  printf("size= %d ", server_files_length);
+  stream_read(sockfd, (void*)&server_files_length, sizeof(server_files_length));
+
+  //  printf("size= %d\n ", server_files_length);
   
-  server_files = malloc(server_files_length*sizeof(file_info));
-  stream_read(sockfd, (void*)server_files, sizeof(file_info)*server_files_length);
+  server_files = malloc(server_files_length * sizeof(file_info));
+  if (!server_files)
+    merror("Not enough memory.");
+
+  for(int i = 0; i < server_files_length; i++)
+    get_fileinfo(sockfd, server_files + i);
 
   qsort(server_files, server_files_length, sizeof(file_info), cmp);
   for(int i=0; i<server_files_length; i++){
     puts(server_files[i].path);
+    //printf("%X %X\n", server_files[i].size, server_files[i].timestamp);
+  }
+  puts("------------");
+  for(int i=0; i<length; i++){
+    puts(local_version[i].path);
+    //printf("%X %X\n", local_version[i].size, local_version[i].timestamp);
   }
 
   // Delete local files that are not on server or get them if they are modified.
@@ -127,14 +147,21 @@ int main(int argc, char** argv)
 
       if( (fileOnServer = isPresentOnServer(local_version[i], server_files, server_files_length)) == -1)
 	{
-	  printf("Deleting %s\n", local_version[i].path);
-	  if(remove(local_version[i].path) != 0)
-	    if(rmdir(local_version[i].path) != 0)
-	      printf("Could not delete file: %s\n", local_version[i].path);
+	  if (delete)
+	    {
+	      printf("Deleting %s\n", local_version[i].path);
+	      if(remove_file(local_version[i].path) != 0)
+		printf("Could not delete file: %s\n", local_version[i].path);
+	    }
+	  else
+	    {
+	      printf("Not on server: %s\n", local_version[i].path);
+	    }
 	}
       else
 	{
 	  if(dateModified(local_version[i], server_files[fileOnServer]) || sizeDifferent(local_version[i], server_files[fileOnServer])){
+	    puts("modi");
 	    get_file(sockfd, server_files[fileOnServer].path, fileOnServer);
 	  }
       
@@ -147,6 +174,7 @@ int main(int argc, char** argv)
 
     if( isOnClient(server_files[i], local_version, length)  == NULL)
       {
+	puts("missing");
 	get_file(sockfd, server_files[i].path, i);
       }
   }

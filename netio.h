@@ -1,6 +1,12 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include "filester.h"
+
+#ifndef NETIO_H
+#define NETIO_H
+
+
 
 // set_addr creates a structure of type sockaddr_in with 
 // the desired address and port
@@ -13,3 +19,10 @@ int stream_write(int sockfd, const void *buff, int len);
 int send_file(int sockfd, const char *file);
 
 int get_file(int sockfd, const char *file, uint16_t fileIndex);
+
+int send_fileinfo(int sockfd, const file_info* fileinfo);
+
+int get_fileinfo(int sockfd, file_info* fileinfo);
+
+
+#endif

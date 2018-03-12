@@ -2,15 +2,20 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-
+#ifndef FILESTER_H
+#define FILESTER_H
 
 typedef struct file_info{
   char path[PATH_MAX];
   uint32_t size;
   int32_t timestamp;
-  //uint16_t id;     // id of file to be retreived.  
 }file_info;
 
-void getFiles(file_info *files, char* path, int* length, int* max_size);
+void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size);
 
 void merror(char *msg);
+
+int remove_file(const char* dirname);
+
+
+#endif

@@ -24,10 +24,7 @@ int cmp(const void* a, const void* b)
 int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
-  int max_length = 100; 
   socklen_t rlen = sizeof(rmt_addr);
-
-  file_info *files = malloc(max_length*sizeof(file_info));
   
   if (argc != 2){
 	merror("Please call: exename softwareFolder");
@@ -67,15 +64,20 @@ int main(int argc, char* argv[]){
 
     if(pid == 0) // new process
       {
-	int length = 0;
-	max_length = 100;
+	uint32_t length = 0;
+	uint32_t max_length = 100;
+
+	file_info *files = malloc(max_length * sizeof(file_info));
+
 	getFiles(files, ".", &length, &max_length);
 	qsort(files, length, sizeof(file_info), cmp);
   
 	// talk with client
-        stream_write(connfd, (void *)&length, sizeof(int));
-	stream_write(connfd, (void *)files, sizeof(file_info) * length);
-	
+        stream_write(connfd, &length, sizeof(length));
+	//stream_write(connfd, (void *)files, sizeof(file_info) * length);
+	for(int i = 0; i < length; i++)
+	  send_fileinfo(connfd, files + i);
+  
 	//send_file(sockfd, "./test.txt");
 	uint32_t command=0;
 	uint16_t index;
