@@ -11,8 +11,9 @@
 #include "netio.h"
 #include "filester.h"
 
-//#define SERVER_ADDRESS "192.168.0.117"
+
 #define SERVER_PORT     5678
+
 
 /* 
  *isPresentOnServer: checks if a file is present on the server version and returns the index of the file. 
@@ -21,9 +22,14 @@
 int isPresentOnServer(file_info local_file, file_info* server_files, int length)
 {
   for(int i=0; i<length; i++)
-    if(strcmp(local_file.path, server_files[i].path) == 0)
-      return i;
-  
+    {
+      int res = strcmp(local_file.path, server_files[i].path);
+      if( res == 0)
+	return i;
+      else if (res < 0)
+	break;
+    }  
+
   return -1;
 }
 
@@ -54,6 +60,14 @@ file_info* isOnClient(file_info server_file, file_info* local_files, int length)
   for(int i=0; i<length; i++){
     if(strcmp(server_file.path, local_files[i].path) == 0)
       return &local_files[i];
+
+	//TODO modifiy this function to work both ways
+	/*
+	if (notOkToCont(local_files[i].path, server_file.path)){
+		printf("stopped after = %s \n", local_files[i].path);
+		break;
+	}
+	*/
   }
   
   return NULL;
@@ -71,6 +85,7 @@ int main(int argc, char** argv)
   char root[30];
   struct sockaddr_in local_addr;
   char *SERVER_ADDRESS;
+
 
   if(argc < 3)
     {
@@ -118,9 +133,11 @@ int main(int argc, char** argv)
 
   uint32_t server_files_length;
   file_info* server_files;
+
   stream_read(sockfd, (void*)&server_files_length, sizeof(server_files_length));
 
   //  printf("size= %d\n ", server_files_length);
+
   
   server_files = malloc(server_files_length * sizeof(file_info));
   if (!server_files)
@@ -130,6 +147,8 @@ int main(int argc, char** argv)
     get_fileinfo(sockfd, server_files + i);
 
   qsort(server_files, server_files_length, sizeof(file_info), cmp);
+
+  printf("Files on server: \n");
   for(int i=0; i<server_files_length; i++){
     puts(server_files[i].path);
     //printf("%X %X\n", server_files[i].size, server_files[i].timestamp);
@@ -139,6 +158,8 @@ int main(int argc, char** argv)
     puts(local_version[i].path);
     //printf("%X %X\n", local_version[i].size, local_version[i].timestamp);
   }
+
+  printf("\n");
 
   // Delete local files that are not on server or get them if they are modified.
   int fileOnServer;
