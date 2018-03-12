@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <netdb.h>
 #include "netio.h"
 #include<stdio.h>
@@ -126,16 +127,14 @@ int send_file(int sockfd, const char *file)
   return 0;
 }
 
-int request_file(int sockfd, const char* file)
+int request_file(int sockfd, uint16_t fileIndex)
 {
   uint32_t rq = 0xF00D;
-  uint32_t size = strlen(file);
 
 
-  printf("Requesting %s\n", file);
+  printf("Requesting %d\n", fileIndex);
   stream_write(sockfd, &rq, sizeof rq);
-  stream_write(sockfd, &size, sizeof size);
-  stream_write(sockfd, file, size);
+  stream_write(sockfd, &fileIndex, sizeof fileIndex);
 
   //  stream_read(sockfd, filesize, sizeof filesize);
 
@@ -143,17 +142,18 @@ int request_file(int sockfd, const char* file)
 }
 
 
-int get_file(int sockfd, const char* file)
+int get_file(int sockfd, const char* file, uint16_t fileIndex)
 {
 
-  if (request_file(sockfd, file))
+  if (request_file(sockfd, fileIndex))
     return -1;
 
   uint32_t st_size;
   uint32_t mtime;
   uint32_t st_mode;
 
-  if ( stream_read(sockfd, &st_size, sizeof st_size) != sizeof st_size ||
+  if ( 
+      stream_read(sockfd, &st_size, sizeof st_size) != sizeof st_size ||
        stream_read(sockfd, &st_mode, sizeof st_mode) != sizeof st_mode ||
        stream_read(sockfd, &mtime, sizeof mtime) != sizeof mtime)
     {
@@ -162,9 +162,6 @@ int get_file(int sockfd, const char* file)
     }
 
   printf("%d %X %X\n", st_size, st_mode, mtime);
-
-
-  
 
   if (S_ISDIR(st_mode)) // directory?
     {
@@ -175,6 +172,7 @@ int get_file(int sockfd, const char* file)
     }
   else
     {
+      //remove(file);
       int fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 00644);
 
       if (fd == -1)

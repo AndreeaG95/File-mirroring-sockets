@@ -22,7 +22,9 @@ void getFiles(file_info *files, char* path, int* length, int* max_size ){
   DIR *d;
   struct dirent *sdir;
   struct stat mstat;
-  char* newpath = malloc(strlen(path) + 30);
+  char* newpath = malloc(PATH_MAX);
+  if(!newpath)
+    merror("Don't have enough memory for directory parsing.");
 
   if(( d = opendir(path)) == NULL ){
     merror("Could not open directory\n");
@@ -30,7 +32,7 @@ void getFiles(file_info *files, char* path, int* length, int* max_size ){
   }
 
   while((sdir = readdir(d)) != NULL){
-    sprintf(newpath, "%s/%s", path, sdir->d_name);
+    snprintf(newpath, PATH_MAX, "%s/%s", path, sdir->d_name);
    
     lstat(newpath, &mstat);
     if((strcmp(sdir->d_name, "..") == 0) || (strcmp(sdir->d_name, ".") == 0 ))
