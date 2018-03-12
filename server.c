@@ -13,44 +13,40 @@
 #include "netio.h"
 #include "filester.h"
 
-#define SERVER_PORT 5678
 
-
-int cmp(const void* a, const void* b)
-{
-  return strcmp( ((file_info *)a)->path, ((file_info *)b)->path );
-}
 
 int main(int argc, char* argv[]){
   int sockfd, connfd;
   struct sockaddr_in local_addr, rmt_addr;
   socklen_t rlen = sizeof(rmt_addr);
   
-  if (argc != 2){
-	merror("Please call: exename softwareFolder");
+  if (argc < 3){
+    printf("Please call: %s <directory> <port>\n", argv[0]);
+    exit(1);
   }
-
-  char* root = argv[1];
   
-  chdir(root);
+  if(chdir(argv[1]))
+    {
+      mperror("Error chdir()");
+    }
   
    
-  // PF_INET=TCP/UP, 0=implicit.
+  // PF_INET=TCP/IP, 0=implicit.
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
   if(sockfd == -1){
-    merror("Unable to create server socket");
+    mperror("Error socket()");
   }
-
+  int port = atoi(argv[2]);
   // Set the server to listen to all interfaces on the selected port.
-  if (set_addr(&local_addr, NULL, INADDR_ANY, SERVER_PORT) == -1)
+  if (set_addr(&local_addr, NULL, INADDR_ANY, port) == -1)
     merror("Unable to get server address");
   
   if (bind(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
-      merror("Unable to binf to socket");
+    mperror("Error bind()");
   
   if (listen(sockfd, 5) == -1)
-    merror("Unable to listen on socket");
+    mperror("Error socket()");
 
   while(1){
     
@@ -58,12 +54,16 @@ int main(int argc, char* argv[]){
     connfd = accept(sockfd, (struct sockaddr *)&rmt_addr, &rlen);
     
     if(connfd == -1)
-      merror("Could not accept connection");
+      {
+	perror("accept()");
+	continue;
+      }
     
     pid_t pid = fork();
 
     if(pid == 0) // new process
       {
+	puts("New connection.");
 	uint32_t length = 0;
 	uint32_t max_length = 100;
 
@@ -72,51 +72,43 @@ int main(int argc, char* argv[]){
 	getFiles(files, ".", &length, &max_length);
 	qsort(files, length, sizeof(file_info), cmp);
   
-	// talk with client
-        stream_write(connfd, &length, sizeof(length));
-	//stream_write(connfd, (void *)files, sizeof(file_info) * length);
-	for(int i = 0; i < length; i++)
-	  send_fileinfo(connfd, files + i);
-  
-	//send_file(sockfd, "./test.txt");
+
+	if (send_filelist(connfd, files, length))
+	    mperror("Could not send filelist\n");
+
 	uint32_t command=0;
 	uint16_t index;
-	int nread;
-	while(0 < (nread = stream_read(connfd, &command, sizeof command)))
+	
+	while(sizeof(command) == stream_read(connfd, &command, sizeof command) &&
+	      command == FILE_REQUEST_COMMAND)
 	  {
-	    if(command == 0xF00D)
+	    if(stream_read(connfd, &index, sizeof index) != sizeof index)
 	      {
-		printf("got food\n");
-		
-		stream_read(connfd, &index, sizeof index); 
-
-		printf("Sending: %s\n", files[index].path);
-		send_file(connfd, files[index].path);
-	      }    
+		break;
+	      }
+	    
+	    printf("Sending: %s\n", files[index].path);
+	    if(send_file(connfd, files[index].path))
+	      break;
 	  }
-	printf("Connection ending\n");
 	
-	// Send tree status.
-	printf("SIZE: %d \n",length);
+	puts("Connection ending.");
 	
-	free(files);
-   
-
+	free(files);   
+	close(connfd);
 	exit(0);
       }
     else if(pid == -1) // fork error
       {
-	merror("Fork error");
+	perror("fork()");
       }
-
     else  // parent process
       {
 	close(connfd);
       }
-
   }
 
- 
+  //should not get here
   close(sockfd);
   exit(0);
 

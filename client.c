@@ -19,7 +19,7 @@
  *isPresentOnServer: checks if a file is present on the server version and returns the index of the file. 
  * Otherwise returns -1.
  */
-int isPresentOnServer(file_info local_file, file_info* server_files, int length)
+int file_in_list(file_info local_file, file_info* server_files, int length)
 {
   for(int i=0; i<length; i++)
     {
@@ -39,6 +39,8 @@ int isPresentOnServer(file_info local_file, file_info* server_files, int length)
  */
 int dateModified(file_info local, file_info server)
 {
+  if(S_ISDIR(local.st_mode) && S_ISDIR(server.st_mode))
+    return 0;
   return local.timestamp - server.timestamp;
 }
 
@@ -55,105 +57,89 @@ int sizeDifferent(file_info local, file_info server)
  *isOnClient: checks if a file from the server is present on the client version and returns it. 
  * Otherwise returns null.
  */
+/*
 file_info* isOnClient(file_info server_file, file_info* local_files, int length)
 {
   for(int i=0; i<length; i++){
-    if(strcmp(server_file.path, local_files[i].path) == 0)
+    int res = strcmp(server_file.path, local_files[i].path);
+    if( res == 0)
       return &local_files[i];
 
-	//TODO modifiy this function to work both ways
-	/*
-	if (notOkToCont(local_files[i].path, server_file.path)){
-		printf("stopped after = %s \n", local_files[i].path);
-		break;
-	}
-	*/
   }
   
   return NULL;
 }
+*/
 
 
-int cmp(const void* a, const void* b)
-{
-  return strcmp( ((file_info *)a)->path, ((file_info *)b)->path );
-}
 
 int main(int argc, char** argv)
 {
   int sockfd;
   char root[30];
   struct sockaddr_in local_addr;
-  char *SERVER_ADDRESS;
 
 
-  if(argc < 3)
+  if(argc < 4)
     {
-      printf("Please call: %s localFolder serverIp\n", argv[0]);
+      printf("Please call: %s <directory> <ip> <port> [-d]\n", argv[0]);
+      puts("-d \t delete local files missing on server");
       exit(0);
     }
 
   int delete = 0;
-  if (argc > 3 && !strcmp(argv[3], "-d"))
+  if (argc > 4 && !strcmp(argv[4], "-d"))
     delete = 1;
   else {
-    puts("Delete flag not specified.");
+    puts("Delete flag not specified.\n");
   }
   
-  
-  SERVER_ADDRESS = argv[2];
-
   strncpy(root, argv[1], sizeof(root));
 
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if(sockfd == -1){
-    merror("Unable to create client socket");
+    mperror("socket()");
   }
 
   set_addr(&local_addr, NULL, INADDR_ANY, 0);
 
   // We also use bind on client because we want to connect on a specific port.
-  bind(sockfd, (struct sockaddr *)& local_addr , sizeof(local_addr) );
-
-  if (set_addr(&local_addr, SERVER_ADDRESS, 0, SERVER_PORT) == -1)
+  if(bind(sockfd, (struct sockaddr *)& local_addr , sizeof(local_addr)))
+    mperror("bind()");
+  
+  int port = atoi(argv[3]);
+  if (set_addr(&local_addr, argv[2], 0, port) == -1)
     merror("Unable to get client address");
 
   if(connect(sockfd, (struct sockaddr *)&local_addr, sizeof(local_addr)) == -1)
-    merror("Unable to connect to socket");
+    mperror("connect()");
   
   uint32_t length = 0;
   uint32_t max_length = 100;
 
   file_info *local_version = malloc(max_length * sizeof(file_info));
   
-  chdir(root);
-
-  getFiles(local_version, ".", &length, &max_length);
-  qsort(local_version, length, sizeof(file_info), cmp);   
+  if(chdir(root))
+    mperror("chdir()");
 
   uint32_t server_files_length;
   file_info* server_files;
-
-  stream_read(sockfd, (void*)&server_files_length, sizeof(server_files_length));
-
-  //  printf("size= %d\n ", server_files_length);
-
   
-  server_files = malloc(server_files_length * sizeof(file_info));
-  if (!server_files)
-    merror("Not enough memory.");
+  if(get_filelist(sockfd, &server_files, &server_files_length))
+    merror("Can't get filelist from server.\n");
 
-  for(int i = 0; i < server_files_length; i++)
-    get_fileinfo(sockfd, server_files + i);
+  getFiles(local_version, ".", &length, &max_length);
+  qsort(local_version, length, sizeof(file_info), cmp);
+  
+  //qsort(server_files, server_files_length, sizeof(file_info), cmp);
 
-  qsort(server_files, server_files_length, sizeof(file_info), cmp);
-
-  printf("Files on server: \n");
+  puts("Filelist on server: ");
   for(int i=0; i<server_files_length; i++){
     puts(server_files[i].path);
     //printf("%X %X\n", server_files[i].size, server_files[i].timestamp);
   }
-  puts("------------");
+  puts("\n------------\n");
+  puts("Local filelist: ");
   for(int i=0; i<length; i++){
     puts(local_version[i].path);
     //printf("%X %X\n", local_version[i].size, local_version[i].timestamp);
@@ -166,7 +152,7 @@ int main(int argc, char** argv)
   for(int i=0; i<length; i++)
     {
 
-      if( (fileOnServer = isPresentOnServer(local_version[i], server_files, server_files_length)) == -1)
+      if( (fileOnServer = file_in_list(local_version[i], server_files, server_files_length)) == -1)
 	{
 	  if (delete)
 	    {
@@ -182,7 +168,7 @@ int main(int argc, char** argv)
       else
 	{
 	  if(dateModified(local_version[i], server_files[fileOnServer]) || sizeDifferent(local_version[i], server_files[fileOnServer])){
-	    puts("modi");
+	    remove_file(server_files[fileOnServer].path);
 	    get_file(sockfd, server_files[fileOnServer].path, fileOnServer);
 	  }
       
@@ -193,9 +179,8 @@ int main(int argc, char** argv)
   // Get the files from the server that are not on client.
   for(int i=0; i<server_files_length; i++){
 
-    if( isOnClient(server_files[i], local_version, length)  == NULL)
+    if( file_in_list(server_files[i], local_version, length)  == -1)
       {
-	puts("missing");
 	get_file(sockfd, server_files[i].path, i);
       }
   }

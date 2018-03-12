@@ -75,20 +75,27 @@ int stream_write(int sockfd, const void *buff, int len){
 
 
 
+
+
 int get_fileinfo(int sockfd, file_info* fileinfo)
 {
   uint16_t size;
 
-  stream_read(sockfd, &size, sizeof size);
+  if(stream_read(sockfd, &size, sizeof size) != sizeof size)
+    return -1;
   if (size >= PATH_MAX)
     return -1;
 
-  stream_read(sockfd, &(fileinfo->path), size);
+  if(stream_read(sockfd, &(fileinfo->path), size) != size)
+    return -1;
+
   fileinfo->path[size] = '\0';
 
-  stream_read(sockfd, &(fileinfo->size), sizeof(fileinfo->size));
-  stream_read(sockfd, &(fileinfo->timestamp), sizeof(fileinfo->timestamp));
-  
+  if(stream_read(sockfd, &(fileinfo->size), sizeof(fileinfo->size)) != sizeof(fileinfo->size) ||
+     stream_read(sockfd, &(fileinfo->timestamp), sizeof(fileinfo->timestamp)) != sizeof(fileinfo->timestamp) ||
+     stream_read(sockfd, &(fileinfo->st_mode), sizeof(fileinfo->st_mode)) != sizeof(fileinfo->st_mode))
+    return -1;
+
   return 0;
 }
 
@@ -97,13 +104,63 @@ int send_fileinfo(int sockfd, const file_info* fileinfo)
 {
   uint16_t len = strlen(fileinfo->path);
 
-  stream_write(sockfd, &len, sizeof len);
-  stream_write(sockfd, &(fileinfo->path), len);
-  stream_write(sockfd, &(fileinfo->size), sizeof(fileinfo->size));
-  stream_write(sockfd, &(fileinfo->timestamp), sizeof(fileinfo->timestamp));
+  if(stream_write(sockfd, &len, sizeof len) != sizeof len ||
+     stream_write(sockfd, &(fileinfo->path), len) != len ||
+     stream_write(sockfd, &(fileinfo->size), sizeof(fileinfo->size)) != sizeof(fileinfo->size) ||
+     stream_write(sockfd, &(fileinfo->timestamp), sizeof(fileinfo->timestamp)) != sizeof(fileinfo->timestamp) ||
+     stream_write(sockfd, &(fileinfo->st_mode), sizeof(fileinfo->st_mode)) != sizeof(fileinfo->st_mode))
+    return -1;
   
   return 0;
 }
+
+
+int send_filelist(int sockfd, const file_info *filelist, uint32_t length)
+{
+  // talk with client
+  if(stream_write(sockfd, &length, sizeof(length)) != sizeof length)
+    return -1;
+  
+  for(int i = 0; i < length; i++)
+    if(send_fileinfo(sockfd, filelist + i))
+      return -1;
+
+  return 0;
+}
+
+
+int is_sane(const char *path)
+{
+  if (path[0] == '\0' || path[1] == '\0' || path[2] == '\0' || (path[1] == '.' && path[2] == '.' && path[3] == '/'))
+    return 0;
+
+  if (strstr(path, "/../"))
+    return 0;
+
+  return 1;
+}
+
+int get_filelist(int sockfd, file_info **filelist, uint32_t *length)
+{
+  
+  if(stream_read(sockfd, length, sizeof(*length)) != sizeof(*length))
+    return -1;
+  
+  *filelist = malloc(*length * sizeof(file_info));
+  if (*filelist == NULL)
+    merror("Not enough memory for filelist.");
+
+  for(int i = 0; i < *length; i++)
+    {
+      if(get_fileinfo(sockfd, *filelist + i))
+	return -1;
+      if(!is_sane((*filelist)[i].path))
+	merror("Server gives dangerous paths. Aborting...\n");
+    }
+  return 0;
+}
+
+
 
 
 int send_file(int sockfd, const char *file)
@@ -112,7 +169,7 @@ int send_file(int sockfd, const char *file)
   
   if(fd == -1) {
     printf("Could not open %s\n", file);
-    //send error code
+    //send error codeg
     return -1;
   }
   int nread;
@@ -157,13 +214,13 @@ int send_file(int sockfd, const char *file)
     }
 
   close(fd);
-  printf("%s sent.\n", file);
+  //printf("%s sent.\n", file);
   return 0;
 }
 
 int request_file(int sockfd, uint16_t fileIndex)
 {
-  uint32_t rq = 0xF00D;
+  uint32_t rq = FILE_REQUEST_COMMAND;
 
 
   if (stream_write(sockfd, &rq, sizeof rq) != sizeof rq ||
@@ -179,7 +236,7 @@ int request_file(int sockfd, uint16_t fileIndex)
 int get_file(int sockfd, const char* file, uint16_t fileIndex)
 {
   
-  printf("Requesting %s(%d)\n", file, fileIndex);
+  printf("Requesting %s\n", file/*, fileIndex*/);
   if (request_file(sockfd, fileIndex))
     return -1;
 
@@ -196,13 +253,14 @@ int get_file(int sockfd, const char* file, uint16_t fileIndex)
       return -1;
     }
 
-  printf("%d %X %X\n", st_size, st_mode, mtime);
+  //printf("%d %X %X\n", st_size, st_mode, mtime);
 
   if (S_ISDIR(st_mode)) // directory?
     {
       if(mkdir(file, st_mode))
 	{
 	  puts("Could not create directory.");
+	  return -1;
 	}
     }
   else

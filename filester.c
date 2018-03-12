@@ -18,6 +18,17 @@ void merror(char *msg)
   exit(1);
 }
 
+void mperror(char *msg)
+{
+  perror(msg);
+  exit(1);
+}
+
+
+int cmp(const void* a, const void* b)
+{
+  return strcmp( ((file_info *)a)->path, ((file_info *)b)->path );
+}
 
 int remove_file(const char *dirname)
 {
@@ -83,6 +94,7 @@ void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size
       
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
+      files[*length].st_mode = mstat.st_mode;
       
       (*length)++;
       getFiles(files, newpath, length, max_size);
