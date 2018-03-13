@@ -69,7 +69,8 @@ int main(int argc, char* argv[]){
 
 	file_info *files = malloc(max_length * sizeof(file_info));
 
-	getFiles(files, ".", &length, &max_length);
+	getFiles(&files, ".", &length, &max_length);
+	puts("Done");
 	qsort(files, length, sizeof(file_info), cmp);
   
 

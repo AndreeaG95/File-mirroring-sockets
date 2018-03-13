@@ -128,7 +128,7 @@ int main(int argc, char** argv)
   if(get_filelist(sockfd, &server_files, &server_files_length))
     merror("Can't get filelist from server.\n");
 
-  getFiles(local_version, ".", &length, &max_length);
+  getFiles(&local_version, ".", &length, &max_length);
   qsort(local_version, length, sizeof(file_info), cmp);
   
   //qsort(server_files, server_files_length, sizeof(file_info), cmp);

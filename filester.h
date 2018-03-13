@@ -12,7 +12,7 @@ typedef struct file_info{
   uint32_t st_mode;
 }file_info;
 
-void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size);
+void getFiles(file_info **files, char* path, uint32_t* length, uint32_t* max_size);
 
 void merror(char *msg);
 

@@ -121,6 +121,7 @@ int send_filelist(int sockfd, const file_info *filelist, uint32_t length)
   if(stream_write(sockfd, &length, sizeof(length)) != sizeof length)
     return -1;
   
+
   for(int i = 0; i < length; i++)
     if(send_fileinfo(sockfd, filelist + i))
       return -1;

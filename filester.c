@@ -62,7 +62,7 @@ int remove_file(const char *dirname)
 
 
 
-void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size ){
+void getFiles(file_info **filelist, char* path, uint32_t* length, uint32_t* max_size ){
   DIR *d;
   struct dirent *sdir;
   struct stat mstat;
@@ -71,9 +71,10 @@ void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size
     merror("Don't have enough memory for directory parsing.");
 
   if(( d = opendir(path)) == NULL ){
-    merror("Could not open directory\n");
-    closedir(d);
+    puts(path);
+    mperror("opendir()");
   }
+  file_info *files = *filelist;
 
   while((sdir = readdir(d)) != NULL){
     snprintf(newpath, PATH_MAX, "%s/%s", path, sdir->d_name);
@@ -85,28 +86,30 @@ void getFiles(file_info *files, char* path, uint32_t* length, uint32_t* max_size
     // Expand memory for more files.    
     if(*length >= *max_size){
       *max_size = (*max_size) + (*max_size)/2;
-      if ( (files = realloc(files, (*max_size)*sizeof(file_info))) == NULL)
-	   merror("Could not allocate memory for files");
+      if ( (*filelist = realloc(*filelist, (*max_size)*sizeof(file_info))) == NULL)
+	merror("Could not allocate memory for files");
+      files = *filelist;
     }
 
     if(S_ISDIR(mstat.st_mode)){
       strncpy(files[*length].path, newpath, sizeof(files[*length].path)); 
-      
+      puts(newpath);
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
       files[*length].st_mode = mstat.st_mode;
       
       (*length)++;
-      getFiles(files, newpath, length, max_size);
+      getFiles(filelist, newpath, length, max_size);
+      files = *filelist;
     }else if(S_ISREG(mstat.st_mode) || S_ISLNK(mstat.st_mode)){
       strncpy(files[*length].path, newpath, sizeof(files[*length].path)); 
-    
+      puts(newpath);
       files[*length].size = (uint32_t)mstat.st_size;
       files[*length].timestamp = (int32_t)mstat.st_mtime;
       
       (*length)++;
     }
   }
-
+  closedir(d);
   free(newpath);
 }
